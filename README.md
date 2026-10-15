@@ -17,7 +17,8 @@ inside the app, so there is nothing else to install.
 - **Trim** by start and end time (`75`, `1:15` or `0:01:15` all work).
 - **Remove audio**, or pull just the audio out of a video.
 - Shows file details, a **progress bar**, a **Cancel** button, and how much smaller the
-  result is. Output never overwrites an existing file unless you choose it in *Change…*.
+  result is. It always writes a new file and never overwrites one unless you pick it by
+  clicking the file name next to *Save as*.
 
 ## Run it
 
@@ -30,7 +31,7 @@ npm install
 npm start
 ```
 
-Drop a file onto the window (or click **Choose file…**), pick your settings, and click
+Drop a file onto the window (or click **Choose file**), pick your settings, and click
 **Convert**. The output is saved next to the original as `name-studio.<format>`.
 
 ## Build an installer
