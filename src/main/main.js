@@ -2,7 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { ffmpegPath, ffprobePath } = require('./binaries');
+const { ffmpegPath, ffprobePath, checkBinaries } = require('./binaries');
 const { probe, runPasses } = require('../core/ffmpeg');
 const { buildJobs, parseTime, defaultOutputPath } = require('../core/build-jobs');
 const { encodeImageToSize } = require('../core/image-size');
@@ -99,6 +99,13 @@ ipcMain.handle('cancel', () => current?.cancel());
 ipcMain.handle('reveal', (_e, file) => shell.showItemInFolder(file));
 
 app.whenReady().then(() => {
+  try {
+    checkBinaries();
+  } catch (err) {
+    dialog.showErrorBox('FFmpeg Studio can’t start', err.message);
+    app.quit();
+    return;
+  }
   createWindow();
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow());
 });

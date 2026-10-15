@@ -45,7 +45,8 @@ npm run dist
 ```
 
 This uses electron-builder to make a `.dmg` on macOS, an `.exe` installer on Windows or
-an `.AppImage` on Linux, in the `dist/` folder. Build on the OS you're targeting.
+an `.AppImage` on Linux, in the `dist/` folder. Build on the OS and CPU type you're
+targeting (an Apple Silicon Mac for Apple Silicon), since the bundled ffmpeg is native.
 
 ## Tests
 
@@ -70,5 +71,7 @@ target size and cancel.
 | `src/renderer/` | The UI (plain HTML, CSS and JavaScript) |
 
 ffmpeg comes from [`ffmpeg-static`](https://www.npmjs.com/package/ffmpeg-static) and
-ffprobe from [`ffprobe-static`](https://www.npmjs.com/package/ffprobe-static). Those
+ffprobe from [`@ffprobe-installer/ffprobe`](https://www.npmjs.com/package/@ffprobe-installer/ffprobe).
+Both install the right build for your computer, including Apple Silicon Macs, so run
+`npm install` on the machine (and CPU type) you run or build on. Those
 ffmpeg builds are GPL-licensed, so keep that in mind if you distribute the app.
