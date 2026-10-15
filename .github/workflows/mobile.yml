@@ -125,10 +125,27 @@ jobs:
       - name: Run the self-test in the simulator
         run: |
           device=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone[^(]*\(([0-9A-F-]{36})\)' | grep -oE '[0-9A-F-]{36}')
+          echo "device=$device" >> "$GITHUB_ENV"
           xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device"
           xcrun simctl install "$device" build/Build/Products/Release-iphonesimulator/FFmpegStudio.app
-          xcrun simctl openurl "$device" "ffmpegstudio://selftest"
-          report="$(xcrun simctl get_app_container "$device" com.karan5656.ffmpegstudio data)/Documents/selftest.txt"
-          for i in $(seq 1 120); do if grep -q "DONE" "$report" 2>/dev/null; then break; fi; sleep 5; done
-          cat "$report"
-          grep -q "DONE pass=[1-9][0-9]* fail=0" "$report"
+          docs="$(xcrun simctl get_app_container "$device" com.karan5656.ffmpegstudio data)/Documents"
+          mkdir -p "$docs" && touch "$docs/selftest-request"
+          xcrun simctl launch "$device" com.karan5656.ffmpegstudio
+          for i in $(seq 1 120); do if grep -q "DONE" "$docs/selftest.txt" 2>/dev/null; then break; fi; sleep 5; done
+          cat "$docs/selftest.txt"
+          grep -q "DONE pass=[1-9][0-9]* fail=0" "$docs/selftest.txt"
+      - name: Collect simulator screenshot and logs
+        if: failure()
+        run: |
+          mkdir -p ../ios-debug
+          xcrun simctl io "$device" screenshot ../ios-debug/screen.png || true
+          xcrun simctl spawn "$device" log show --last 20m --style compact \
+            --predicate 'process == "FFmpegStudio"' > ../ios-debug/app.log 2>&1 || true
+          tail -n 80 ../ios-debug/app.log
+          cp ~/Library/Logs/DiagnosticReports/FFmpegStudio* ../ios-debug/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-debug
+          path: ios-debug

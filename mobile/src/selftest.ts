@@ -6,6 +6,18 @@ import { canMake } from './core/media.ts';
 import { convert, fileSize, probe, runPasses, uriToPath } from './ffmpeg.ts';
 import { workDir } from './files.ts';
 
+/** True (once) if CI dropped a Documents/selftest-request file before launching the app. */
+export function selfTestRequested(): boolean {
+  try {
+    const request = new File(Paths.document, 'selftest-request');
+    if (!request.exists) return false;
+    request.delete();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Generates a short clip and an image with ffmpeg's test sources, then converts them
  * to every format with a few settings. Opened with ffmpegstudio://selftest; CI reads

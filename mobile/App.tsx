@@ -13,7 +13,7 @@ import {
 } from './src/core/media.ts';
 import { convert, fileSize, probe, uriToPath, type Job } from './src/ffmpeg.ts';
 import { cleanWorkDir, pickFromFiles, pickFromGallery, saveFile, shareFile, workDir, type Picked } from './src/files.ts';
-import { runSelfTest } from './src/selftest.ts';
+import { runSelfTest, selfTestRequested } from './src/selftest.ts';
 import { Button, Card, Pill, ProgressBar, Row, Section, useTheme, type Theme } from './src/ui/parts.tsx';
 
 type SizeMode = Quality | 'size';
@@ -54,15 +54,19 @@ function Studio() {
   const [selfTest, setSelfTest] = useState<string[] | null>(null);
   const job = useRef<Job | null>(null);
 
-  // ffmpegstudio://selftest runs every format on a generated clip (used by CI).
+  // ffmpegstudio://selftest (or a Documents/selftest-request file, which the iOS simulator
+  // can be given without a link prompt) runs every format on a generated clip. Used by CI.
   useEffect(() => {
-    const run = (url: string | null) => {
-      if (!url?.includes('selftest')) return;
+    let started = false;
+    const run = () => {
+      if (started) return;
+      started = true;
       setSelfTest([]);
       runSelfTest((line) => setSelfTest((lines) => [...(lines || []), line]));
     };
-    Linking.getInitialURL().then(run);
-    const sub = Linking.addEventListener('url', (e) => run(e.url));
+    if (selfTestRequested()) run();
+    Linking.getInitialURL().then((url) => url?.includes('selftest') && run());
+    const sub = Linking.addEventListener('url', (e) => e.url.includes('selftest') && run());
     return () => sub.remove();
   }, []);
 
