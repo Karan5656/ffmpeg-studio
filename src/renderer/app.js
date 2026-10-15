@@ -27,8 +27,26 @@ function formatDuration(s) {
   return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }
 
+// Megabytes, rounded so small files still get a meaningful number.
+function toMB(bytes) {
+  const mb = bytes / 1024 / 1024;
+  return Math.max(0.01, Number(mb.toFixed(mb < 10 ? 2 : 1)));
+}
+
 const baseName = (p) => p.split(/[\\/]/).pop();
 const currentFormat = () => state.formats.find((f) => f.id === state.format);
+
+// Other extensions that are really one of our formats.
+const FORMAT_ALIASES = { m4v: 'mp4', aac: 'm4a', oga: 'ogg' };
+
+/** The output format matching the input file, or the closest sensible one. */
+function sameFormat(file, info) {
+  const ext = (file.match(/\.([^./\\]+)$/)?.[1] || '').toLowerCase();
+  const id = FORMAT_ALIASES[ext] || ext;
+  const fmt = state.formats.find((f) => f.id === id);
+  if (fmt && (fmt.kind === 'audio' ? info.hasAudio : info.hasVideo)) return id;
+  return info.hasVideo ? 'mp4' : 'mp3';
+}
 
 function showError(msg) {
   $('error').textContent = msg;
@@ -62,8 +80,10 @@ function updateSizeHint() {
   const info = state.info;
   const mb = Number($('target-mb').value);
   if (!info?.size || !(mb > 0)) return ($('size-hint').textContent = '');
-  const original = info.size / 1024 / 1024;
-  $('size-hint').textContent = `of ${original.toFixed(1)} MB original (${Math.round((mb / original) * 100)}%)`;
+  const original = toMB(info.size);
+  $('size-hint').textContent = mb === original
+    ? 'same as the original'
+    : `of ${original} MB original (${Math.round((mb / original) * 100)}%)`;
 }
 
 async function loadFile(file) {
@@ -86,8 +106,13 @@ async function loadFile(file) {
       const f = state.formats.find((x) => x.id === b.dataset.value);
       b.disabled = (!info.hasVideo && f.kind !== 'audio') || (!info.hasAudio && f.kind === 'audio');
     }
-    if (!info.hasVideo && currentFormat().kind !== 'audio') state.format = 'mp3';
-    if (info.size) $('target-mb').value = Math.max(0.1, Math.round((info.size / 1024 / 1024) * 5) / 10);
+
+    // Start from the file as it is: same format, same size, same resolution.
+    state.format = sameFormat(file, info);
+    state.sizeMode = info.size ? 'size' : 'balanced';
+    if (info.size) $('target-mb').value = toMB(info.size);
+    $('height').value = '0';
+    $('height').options[0].textContent = info.hasVideo ? `Original (${info.width}×${info.height})` : 'Original';
 
     $('empty').hidden = true;
     $('editor').hidden = false;
