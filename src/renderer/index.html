@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+  <title>FFmpeg Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>FFmpeg Studio</h1>
+    <p class="sub">Convert, compress, resize and trim video and audio files.</p>
+  </header>
+
+  <main>
+    <section id="drop" class="card drop">
+      <div id="drop-empty">
+        <p class="big">Drop a video or audio file here</p>
+        <button id="pick" class="primary">Choose file…</button>
+      </div>
+      <div id="file-info" hidden>
+        <div class="file-row">
+          <div>
+            <div id="file-name" class="file-name"></div>
+            <div id="file-meta" class="muted"></div>
+          </div>
+          <button id="change">Change file</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Format</h2>
+        <label>Convert to
+          <select id="format"></select>
+        </label>
+        <label id="gif-fps-row" hidden>GIF frame rate
+          <select id="gif-fps">
+            <option value="8">8 fps (smaller)</option>
+            <option value="12" selected>12 fps</option>
+            <option value="15">15 fps</option>
+            <option value="24">24 fps (smoother)</option>
+          </select>
+        </label>
+        <label class="check" id="remove-audio-row"><input type="checkbox" id="remove-audio" /> Remove audio</label>
+      </section>
+
+      <section class="card" id="compress-card">
+        <h2>File size</h2>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="quality" checked /> By quality</label>
+          <label><input type="radio" name="mode" value="size" /> Target size</label>
+        </div>
+        <div id="quality-row">
+          <select id="quality">
+            <option value="high">High quality (bigger file)</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="small">Smallest file (lower quality)</option>
+          </select>
+        </div>
+        <div id="size-row" hidden>
+          <label>Target size (MB)
+            <input type="number" id="target-mb" min="0.1" step="0.1" value="10" />
+          </label>
+          <div class="muted small" id="size-hint"></div>
+        </div>
+        <div class="muted small" id="lossless-note" hidden>WAV is uncompressed, so size can't be changed.</div>
+      </section>
+
+      <section class="card" id="resize-card">
+        <h2>Resize</h2>
+        <label>Height
+          <select id="height">
+            <option value="0">Keep original</option>
+            <option value="2160">2160p (4K)</option>
+            <option value="1440">1440p</option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+            <option value="240">240p</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </label>
+        <label id="custom-height-row" hidden>Custom height (px)
+          <input type="number" id="custom-height" min="16" step="2" value="540" />
+        </label>
+        <div class="muted small">Width follows the aspect ratio.</div>
+      </section>
+
+      <section class="card">
+        <h2>Trim</h2>
+        <div class="two">
+          <label>Start
+            <input type="text" id="trim-start" placeholder="0:00" />
+          </label>
+          <label>End
+            <input type="text" id="trim-end" placeholder="end" />
+          </label>
+        </div>
+        <div class="muted small">Seconds, mm:ss or hh:mm:ss. Leave blank to keep all.</div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Save to</h2>
+      <div class="file-row">
+        <div id="output-path" class="muted path">Choose a file first</div>
+        <button id="change-output" disabled>Change…</button>
+      </div>
+    </section>
+
+    <section class="card actions">
+      <button id="convert" class="primary big-btn" disabled>Convert</button>
+      <button id="cancel" hidden>Cancel</button>
+      <div class="progress-wrap" id="progress-wrap" hidden>
+        <div class="progress"><div id="bar"></div></div>
+        <div id="progress-label" class="muted small"></div>
+      </div>
+      <div id="result" class="result" hidden></div>
+      <div id="error" class="error" hidden></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
