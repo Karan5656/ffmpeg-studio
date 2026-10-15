@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "FFmpeg Studio",
+    "slug": "ffmpeg-studio",
+    "scheme": "ffmpegstudio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.karan5656.ffmpegstudio",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.karan5656.ffmpegstudio",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FFmpeg Studio opens the photos and videos you pick so it can convert them.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "./plugins/with-ffmpeg-kit.js"
+    ]
+  }
+}

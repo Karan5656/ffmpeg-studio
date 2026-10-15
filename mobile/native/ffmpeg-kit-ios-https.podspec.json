@@ -1,0 +1,28 @@
+{
+  "name": "ffmpeg-kit-ios-https",
+  "version": "6.0",
+  "summary": "FFmpegKit 6.0 full-gpl iOS frameworks (mirror), served under the pod name ffmpeg-kit-react-native asks for",
+  "description": "FFmpeg 6.0 with x264, x265, libvpx, lame, opus, vorbis, libwebp and more. The original ffmpeg-kit downloads were removed in 2025; these are the same 6.0 full-gpl xcframeworks, mirrored by cocoapods-alt.",
+  "homepage": "https://github.com/cocoapods-alt/ffmpeg-kit-ios-full-gpl",
+  "license": { "type": "GPL-3.0", "file": "xcframeworks/ffmpegkit.xcframework/ios-arm64/ffmpegkit.framework/LICENSE" },
+  "authors": { "Arthenica": "open-source@arthenica.com" },
+  "source": {
+    "git": "https://github.com/cocoapods-alt/ffmpeg-kit-ios-full-gpl.git",
+    "commit": "75bc077d4531fb725bb2f1e0dc2ef55e07540faa"
+  },
+  "platforms": { "ios": "15.0" },
+  "preserve_paths": "xcframeworks/**/*",
+  "vendored_frameworks": [
+    "xcframeworks/ffmpegkit.xcframework",
+    "xcframeworks/libavcodec.xcframework",
+    "xcframeworks/libavdevice.xcframework",
+    "xcframeworks/libavfilter.xcframework",
+    "xcframeworks/libavformat.xcframework",
+    "xcframeworks/libavutil.xcframework",
+    "xcframeworks/libswresample.xcframework",
+    "xcframeworks/libswscale.xcframework"
+  ],
+  "frameworks": ["AudioToolbox", "AVFoundation", "CoreMedia", "VideoToolbox"],
+  "libraries": ["z", "bz2", "c++", "iconv"],
+  "pod_target_xcconfig": { "ENABLE_BITCODE": "NO", "DEFINES_MODULE": "YES" }
+}

@@ -1,0 +1,8 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // Imports spell out .ts so the core logic also runs under `node --test` without a build step.
+    "allowImportingTsExtensions": true
+  }
+}
