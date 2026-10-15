@@ -14,7 +14,7 @@
         <path d="M12 16V4m0 0-4 4m4-4 4 4M5 20h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <h1>FFmpeg Studio</h1>
-      <p class="muted">Drop a video or audio file to convert, compress, resize or trim it.</p>
+      <p class="muted">Drop a video, audio or image file to convert, compress, resize or trim it.</p>
       <button id="pick" class="primary">Choose file</button>
     </div>
     <div id="empty-error" class="error" hidden></div>
@@ -41,6 +41,10 @@
           <span class="group-label">Audio</span>
           <div id="formats-audio" class="pills"></div>
         </div>
+        <div class="pill-group">
+          <span class="group-label">Image</span>
+          <div id="formats-image" class="pills"></div>
+        </div>
       </section>
 
       <section id="compress-section">
@@ -56,30 +60,20 @@
           <span class="unit">MB</span>
           <span class="muted small" id="size-hint"></span>
         </div>
-        <p class="muted small" id="lossless-note" hidden>WAV is uncompressed, so its size can't be changed.</p>
+        <p class="muted small" id="lossless-note" hidden></p>
         <p class="muted small" id="gif-note" hidden>GIF size depends on frame rate and resolution.</p>
       </section>
 
       <section class="row">
         <div class="field" id="resize-field">
           <h2>Resolution</h2>
-          <select id="height">
-            <option value="0">Original</option>
-            <option value="2160">2160p (4K)</option>
-            <option value="1440">1440p</option>
-            <option value="1080">1080p</option>
-            <option value="720">720p</option>
-            <option value="480">480p</option>
-            <option value="360">360p</option>
-            <option value="240">240p</option>
-            <option value="custom">Custom…</option>
-          </select>
+          <select id="height"></select>
           <div id="custom-height-row" class="inline" hidden>
             <input type="number" id="custom-height" min="16" step="2" value="540" />
             <span class="unit">px tall</span>
           </div>
         </div>
-        <div class="field">
+        <div class="field" id="trim-field">
           <h2>Trim</h2>
           <div class="inline">
             <input type="text" id="trim-start" placeholder="Start" />

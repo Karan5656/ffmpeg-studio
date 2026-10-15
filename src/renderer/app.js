@@ -37,15 +37,44 @@ const baseName = (p) => p.split(/[\\/]/).pop();
 const currentFormat = () => state.formats.find((f) => f.id === state.format);
 
 // Other extensions that are really one of our formats.
-const FORMAT_ALIASES = { m4v: 'mp4', aac: 'm4a', oga: 'ogg' };
+const FORMAT_ALIASES = { m4v: 'mp4', aac: 'm4a', oga: 'ogg', jpeg: 'jpg' };
 
 /** The output format matching the input file, or the closest sensible one. */
 function sameFormat(file, info) {
   const ext = (file.match(/\.([^./\\]+)$/)?.[1] || '').toLowerCase();
   const id = FORMAT_ALIASES[ext] || ext;
   const fmt = state.formats.find((f) => f.id === id);
-  if (fmt && (fmt.kind === 'audio' ? info.hasAudio : info.hasVideo)) return id;
+  if (fmt && canMake(fmt, info)) return id;
+  if (info.isImage) return 'png';
   return info.hasVideo ? 'mp4' : 'mp3';
+}
+
+/** Whether a file with this probe info can be converted to fmt. */
+function canMake(fmt, info) {
+  if (info.isImage) return fmt.kind === 'image';
+  if (fmt.kind === 'image') return false;
+  return fmt.kind === 'audio' ? info.hasAudio : info.hasVideo;
+}
+
+// Resolution choices: preset heights for video, percentages for images.
+const VIDEO_SIZES = [
+  ['2160', '2160p (4K)'], ['1440', '1440p'], ['1080', '1080p'], ['720', '720p'],
+  ['480', '480p'], ['360', '360p'], ['240', '240p'],
+];
+const IMAGE_SIZES = [['scale:0.75', '75%'], ['scale:0.5', '50%'], ['scale:0.25', '25%']];
+
+function fillResolutions(info) {
+  const original = info.hasVideo ? `Original (${info.width}×${info.height})` : 'Original';
+  const sizes = info.isImage
+    ? IMAGE_SIZES.map(([v, label]) => {
+        const s = Number(v.split(':')[1]);
+        return [v, `${label} (${Math.round(info.width * s)}×${Math.round(info.height * s)})`];
+      })
+    : VIDEO_SIZES;
+  $('height').replaceChildren(
+    ...[['0', original], ...sizes, ['custom', 'Custom height…']].map(([v, label]) => new Option(label, v))
+  );
+  $('height').value = '0';
 }
 
 function showError(msg) {
@@ -59,20 +88,25 @@ function refreshControls() {
   if (!fmt) return;
   const isAudio = fmt.kind === 'audio';
   const isGif = fmt.kind === 'gif';
-  const lossless = fmt.id === 'wav';
+  const isImage = fmt.kind === 'image';
+  const lossless = fmt.id === 'wav' || fmt.id === 'png';
 
   for (const b of document.querySelectorAll('.pill')) b.classList.toggle('on', b.dataset.value === state.format);
   for (const b of $('size-mode').children) b.classList.toggle('on', b.dataset.value === state.sizeMode);
 
   $('size-mode').classList.toggle('disabled', isGif || lossless);
   $('lossless-note').hidden = !lossless;
+  $('lossless-note').textContent = isImage
+    ? "PNG is lossless, so only Resolution changes its size."
+    : "WAV is uncompressed, so its size can't be changed.";
   $('gif-note').hidden = !isGif;
   $('size-row').hidden = state.sizeMode !== 'size' || isGif || lossless;
   $('resize-field').classList.toggle('disabled', isAudio);
   $('custom-height-row').hidden = $('height').value !== 'custom';
   $('remove-audio-row').hidden = isAudio || isGif;
   $('gif-fps-row').hidden = !isGif;
-  $('extras-section').hidden = isAudio;
+  $('extras-section').hidden = isAudio || isImage;
+  $('trim-field').hidden = isImage;
   updateSizeHint();
 }
 
@@ -94,8 +128,10 @@ async function loadFile(file) {
     state.outputChosen = false;
 
     $('file-name').textContent = baseName(file);
-    const chips = [formatBytes(info.size), formatDuration(info.duration)];
-    if (info.hasVideo) chips.push(`${info.width}×${info.height}`, info.videoCodec, info.fps ? `${info.fps} fps` : '');
+    const chips = info.isImage
+      ? [formatBytes(info.size), `${info.width}×${info.height}`, info.videoCodec.replace('mjpeg', 'jpeg').toUpperCase()]
+      : [formatBytes(info.size), formatDuration(info.duration)];
+    if (info.hasVideo && !info.isImage) chips.push(`${info.width}×${info.height}`, info.videoCodec, info.fps ? `${info.fps} fps` : '');
     if (info.hasAudio) chips.push(`${info.audioCodec} audio`);
     $('file-meta').replaceChildren(
       ...chips.filter(Boolean).map((t) => Object.assign(document.createElement('span'), { className: 'chip', textContent: t }))
@@ -104,15 +140,18 @@ async function loadFile(file) {
     // Only offer formats this file can actually become.
     for (const b of document.querySelectorAll('.pill')) {
       const f = state.formats.find((x) => x.id === b.dataset.value);
-      b.disabled = (!info.hasVideo && f.kind !== 'audio') || (!info.hasAudio && f.kind === 'audio');
+      b.disabled = !canMake(f, info);
+    }
+    // Hide whole groups (Video, Audio, Image) this file can't become.
+    for (const group of document.querySelectorAll('.pill-group')) {
+      group.hidden = !group.querySelector('.pill:not(:disabled)');
     }
 
     // Start from the file as it is: same format, same size, same resolution.
     state.format = sameFormat(file, info);
     state.sizeMode = info.size ? 'size' : 'balanced';
     if (info.size) $('target-mb').value = toMB(info.size);
-    $('height').value = '0';
-    $('height').options[0].textContent = info.hasVideo ? `Original (${info.width}×${info.height})` : 'Original';
+    fillResolutions(info);
 
     $('empty').hidden = true;
     $('editor').hidden = false;
@@ -159,7 +198,10 @@ function setRunning(running) {
 async function convert() {
   showError('');
   $('result').hidden = true;
-  const height = $('height').value === 'custom' ? Number($('custom-height').value) : Number($('height').value);
+  const resolution = $('height').value;
+  const resize = resolution === 'custom'
+    ? { height: Number($('custom-height').value) }
+    : resolution.startsWith('scale:') ? { scale: Number(resolution.slice(6)) } : { height: Number(resolution) };
   const bySize = state.sizeMode === 'size';
   const opts = {
     input: state.input,
@@ -170,7 +212,7 @@ async function convert() {
       quality: bySize ? 'balanced' : state.sizeMode,
       targetMB: Number($('target-mb').value),
     },
-    resize: { height },
+    resize,
     trim: { start: $('trim-start').value, end: $('trim-end').value },
     removeAudio: $('remove-audio').checked,
     gifFps: Number($('gif-fps').value),
@@ -238,7 +280,7 @@ async function init() {
       refreshOutput();
       refreshControls();
     };
-    $(f.kind === 'audio' ? 'formats-audio' : 'formats-video').append(b);
+    $({ audio: 'formats-audio', image: 'formats-image' }[f.kind] || 'formats-video').append(b);
   }
 
   for (const b of $('size-mode').children) {

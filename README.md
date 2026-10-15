@@ -1,19 +1,23 @@
 # FFmpeg Studio
 
-A desktop app for changing the format, file size, resolution and length of video and
-audio files. It runs [ffmpeg](https://ffmpeg.org) under the hood, and ffmpeg ships
+A desktop app for changing the format, file size, resolution and length of video,
+audio and image files. It runs [ffmpeg](https://ffmpeg.org) under the hood, and ffmpeg ships
 inside the app, so there is nothing else to install.
 
 ![FFmpeg Studio](docs/screenshot.png)
 
 ## What it does
 
-- **Convert** to MP4, MOV, MKV, WebM, animated GIF, MP3, M4A, OGG or WAV.
+- **Convert** video to MP4, MOV, MKV, WebM or animated GIF, audio to MP3, M4A, OGG or
+  WAV, and images (JPG, PNG, WebP, BMP, TIFF) to JPG, PNG or WebP.
 - **Shrink files** either by picking a quality level (High, Balanced, Smallest) or by
   typing a **target size in MB**. Target size uses a two-pass encode so the result lands
-  just under the number you asked for.
-- **Resize** to a preset height (4K down to 240p) or a custom one. Width keeps the
-  aspect ratio.
+  just under the number you asked for. For images it tries a few quality levels and
+  keeps the best one that fits.
+- **Resize** video to a preset height (4K down to 240p) and images to 75%, 50% or 25%,
+  or pick a custom height. Width keeps the aspect ratio.
+- Settings start out **matching the file you pick**: same format, same size, original
+  resolution.
 - **Trim** by start and end time (`75`, `1:15` or `0:01:15` all work).
 - **Remove audio**, or pull just the audio out of a video.
 - Shows file details, a **progress bar**, a **Cancel** button, and how much smaller the
@@ -61,6 +65,7 @@ target size and cancel.
 | `src/main/preload.js` | The small, safe API the UI is allowed to call |
 | `src/core/build-jobs.js` | Turns UI settings into ffmpeg arguments (no Electron, easy to test) |
 | `src/core/ffmpeg.js` | Runs ffprobe/ffmpeg and reports progress |
+| `src/core/image-size.js` | Finds the best image quality that fits a target size |
 | `src/core/formats.js` | Formats, codecs and quality presets |
 | `src/renderer/` | The UI (plain HTML, CSS and JavaScript) |
 

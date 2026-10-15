@@ -9,6 +9,9 @@ const FORMATS = {
   m4a: { label: 'M4A audio (AAC)', kind: 'audio', acodec: 'aac' },
   ogg: { label: 'OGG audio (Vorbis)', kind: 'audio', acodec: 'libvorbis' },
   wav: { label: 'WAV audio (lossless)', kind: 'audio', acodec: 'pcm_s16le', lossless: true },
+  jpg: { label: 'JPG image', kind: 'image', vcodec: 'mjpeg' },
+  png: { label: 'PNG image (lossless)', kind: 'image', vcodec: 'png', lossless: true },
+  webp: { label: 'WebP image', kind: 'image', vcodec: 'libwebp' },
 };
 
 // CRF per quality level. Lower CRF = better quality, bigger file.
@@ -20,4 +23,7 @@ const CRF = {
 // Audio bitrate (kbps) per quality level.
 const AUDIO_KBPS = { high: 192, balanced: 128, small: 96 };
 
-module.exports = { FORMATS, CRF, AUDIO_KBPS };
+// Image quality per level, on a 1-100 scale (100 = best).
+const IMAGE_QUALITY = { high: 90, balanced: 75, small: 50 };
+
+module.exports = { FORMATS, CRF, AUDIO_KBPS, IMAGE_QUALITY };

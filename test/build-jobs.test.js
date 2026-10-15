@@ -69,3 +69,25 @@ test('defaultOutputPath never overwrites', () => {
   const taken = new Set(['/v/clip-studio.mp4', '/v/clip-studio-2.mp4']);
   assert.strictEqual(defaultOutputPath('/v/clip.mov', 'mp4', (p) => taken.has(p)), '/v/clip-studio-3.mp4');
 });
+
+const image = { duration: 0, hasVideo: true, hasAudio: false, isImage: true };
+const img = { input: 'in.png', output: 'out.jpg', format: 'jpg' };
+
+test('images: quality maps to JPEG qscale and WebP quality', () => {
+  const jpg = buildJobs({ ...img, compression: { quality: 'high' } }, image).passes[0].args;
+  assert.strictEqual(jpg[jpg.indexOf('-q:v') + 1], '5');
+  const webp = buildJobs({ ...img, output: 'o.webp', format: 'webp', compression: { quality: 'small' } }, image).passes[0].args;
+  assert.strictEqual(webp[webp.indexOf('-quality') + 1], '50');
+});
+
+test('images: resize by percent or height', () => {
+  const pct = buildJobs({ ...img, resize: { scale: 0.5 } }, image).passes[0].args;
+  assert.strictEqual(pct[pct.indexOf('-vf') + 1], 'scale=max(1\\,round(iw*0.5)):max(1\\,round(ih*0.5)):flags=lanczos');
+  const h = buildJobs({ ...img, resize: { height: 300 } }, image).passes[0].args;
+  assert.strictEqual(h[h.indexOf('-vf') + 1], 'scale=-1:300:flags=lanczos');
+});
+
+test('images and media do not mix', () => {
+  assert.throws(() => buildJobs({ ...img, format: 'mp4', output: 'o.mp4' }, image), /image format/);
+  assert.throws(() => buildJobs({ ...base, format: 'jpg', output: 'o.jpg' }, video), /Only image files/);
+});

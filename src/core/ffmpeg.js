@@ -19,7 +19,10 @@ function probe(ffprobePath, file) {
         // Cover art in audio files shows up as a video stream; ignore it.
         const video = streams.find((s) => s.codec_type === 'video' && !s.disposition?.attached_pic);
         const audio = streams.find((s) => s.codec_type === 'audio');
+        const formatName = data.format?.format_name || '';
         resolve({
+          // Still images come through ffmpeg's image demuxers (image2, png_pipe, jpeg_pipe, ...).
+          isImage: Boolean(video) && !audio && (formatName === 'image2' || formatName.endsWith('_pipe')),
           duration: Number(data.format?.duration) || 0,
           size: Number(data.format?.size) || 0,
           bitrate: Number(data.format?.bit_rate) || 0,

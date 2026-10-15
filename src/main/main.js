@@ -5,6 +5,7 @@ const path = require('path');
 const { ffmpegPath, ffprobePath } = require('./binaries');
 const { probe, runPasses } = require('../core/ffmpeg');
 const { buildJobs, parseTime, defaultOutputPath } = require('../core/build-jobs');
+const { encodeImageToSize } = require('../core/image-size');
 const { FORMATS } = require('../core/formats');
 
 let win;
@@ -37,7 +38,7 @@ ipcMain.handle('pick-file', async () => {
   const res = await dialog.showOpenDialog(win, {
     properties: ['openFile'],
     filters: [
-      { name: 'Media', extensions: ['mp4', 'mov', 'mkv', 'webm', 'avi', 'm4v', 'flv', 'wmv', 'gif', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'opus'] },
+      { name: 'Media', extensions: ['mp4', 'mov', 'mkv', 'webm', 'avi', 'm4v', 'flv', 'wmv', 'gif', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'opus', 'jpg', 'jpeg', 'png', 'webp', 'bmp', 'tif', 'tiff'] },
       { name: 'All files', extensions: ['*'] },
     ],
   });
@@ -73,7 +74,12 @@ ipcMain.handle('convert', async (_e, opts) => {
   );
 
   const started = Date.now();
-  current = runPasses(ffmpegPath, passes, duration, (p) => win?.webContents.send('progress', p));
+  const onProgress = (p) => win?.webContents.send('progress', p);
+  const fmt = FORMATS[opts.format];
+  current =
+    fmt.kind === 'image' && opts.compression?.mode === 'size' && !fmt.lossless
+      ? encodeImageToSize(ffmpegPath, opts, onProgress)
+      : runPasses(ffmpegPath, passes, duration, onProgress);
   try {
     await current.promise;
     const size = fs.statSync(opts.output).size;

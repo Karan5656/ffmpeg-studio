@@ -1,5 +1,5 @@
 const path = require('path');
-const { FORMATS, CRF, AUDIO_KBPS } = require('./formats');
+const { FORMATS, CRF, AUDIO_KBPS, IMAGE_QUALITY } = require('./formats');
 
 /**
  * Turn the user's settings into the ffmpeg passes needed to produce the output.
@@ -7,12 +7,12 @@ const { FORMATS, CRF, AUDIO_KBPS } = require('./formats');
  * opts: {
  *   input, output, format,
  *   compression: { mode: 'quality' | 'size', quality: 'high'|'balanced'|'small', targetMB },
- *   resize: { height } (0/undefined = keep original),
+ *   resize: { height } or { scale } (fraction, e.g. 0.5); empty = keep original,
  *   trim: { start, end } in seconds (end 0/undefined = until the end),
  *   removeAudio, gifFps,
  *   passLogPrefix: path prefix for two-pass log files
  * }
- * info: result of probe(): { duration, hasVideo, hasAudio }
+ * info: result of probe(): { duration, hasVideo, hasAudio, isImage }
  *
  * Returns { passes: [{ label, args }], duration } where duration is the length of the
  * output in seconds, used to compute progress.
@@ -20,6 +20,12 @@ const { FORMATS, CRF, AUDIO_KBPS } = require('./formats');
 function buildJobs(opts, info) {
   const fmt = FORMATS[opts.format];
   if (!fmt) throw new Error(`Unknown format: ${opts.format}`);
+  if (fmt.kind === 'image' || info.isImage) {
+    if (fmt.kind !== 'image') throw new Error('Images can only be converted to an image format.');
+    if (!info.isImage) throw new Error('Only image files can be converted to an image format.');
+    const quality = IMAGE_QUALITY[opts.compression?.quality || 'balanced'];
+    return { duration: 0, passes: [{ label: 'Encoding image', args: imageArgs(opts, quality) }] };
+  }
   if (fmt.kind !== 'audio' && !info.hasVideo) {
     throw new Error('This file has no video, so it can only be converted to an audio format.');
   }
@@ -42,13 +48,14 @@ function buildJobs(opts, info) {
 
   const common = ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1'];
   const height = Number(opts.resize?.height) || 0;
+  const scaleFraction = Number(opts.resize?.scale) || 0;
   const compression = opts.compression || { mode: 'quality', quality: 'balanced' };
   const quality = compression.quality || 'balanced';
   const audioOn = info.hasAudio && !opts.removeAudio;
 
   if (fmt.kind === 'gif') {
     const fps = Number(opts.gifFps) || 12;
-    const scale = height ? `,scale=-2:${height}:flags=lanczos` : '';
+    const scale = height || scaleFraction ? `,${scaleFilter(opts.resize, 2)}:flags=lanczos` : '';
     const filter = `fps=${fps}${scale},split[a][b];[a]palettegen[p];[b][p]paletteuse`;
     return {
       duration,
@@ -70,7 +77,7 @@ function buildJobs(opts, info) {
 
   // Video formats.
   const videoArgs = ['-map', '0:v:0', '-c:v', fmt.vcodec, '-pix_fmt', 'yuv420p'];
-  if (height) videoArgs.push('-vf', `scale=-2:${height}`);
+  if (height || scaleFraction) videoArgs.push('-vf', scaleFilter(opts.resize, 2));
   if (fmt.vcodec === 'libx264') videoArgs.push('-preset', 'medium');
   if (fmt.vcodec === 'libvpx-vp9') videoArgs.push('-row-mt', '1', '-deadline', 'good', '-cpu-used', '2');
 
@@ -118,6 +125,38 @@ function buildJobs(opts, info) {
   };
 }
 
+/**
+ * Scale filter for a resize setting. `even` = 2 keeps both sides even, which
+ * H.264/VP9 need; images can use any size.
+ */
+function scaleFilter(resize, even = 1) {
+  const height = Number(resize?.height) || 0;
+  if (height) return `scale=-${even}:${height}`;
+  const s = Number(resize?.scale);
+  const fit = (side) => (even === 2 ? `trunc(${side}*${s}/2)*2` : `max(1\\,round(${side}*${s}))`);
+  return `scale=${fit('iw')}:${fit('ih')}`;
+}
+
+/** ffmpeg arguments to write one image at `quality` (1-100, 100 = best). */
+function imageArgs(opts, quality) {
+  const fmt = FORMATS[opts.format];
+  const resize = opts.resize?.height || opts.resize?.scale ? ['-vf', `${scaleFilter(opts.resize)}:flags=lanczos`] : [];
+  const q = Math.round(clamp(quality, 1, 100));
+  const codec = ['-c:v', fmt.vcodec];
+  if (fmt.vcodec === 'mjpeg') {
+    // JPEG's qscale runs 2 (best) to 31 (worst). Full-range yuv keeps colors right.
+    codec.push('-q:v', String(Math.round(2 + ((100 - q) * 29) / 99)), '-pix_fmt', 'yuvj420p');
+  } else if (fmt.vcodec === 'libwebp') {
+    codec.push('-quality', String(q));
+  } else {
+    codec.push('-compression_level', '9'); // PNG: lossless, so squeeze as hard as possible.
+  }
+  return [
+    '-hide_banner', '-y', '-nostats', '-progress', 'pipe:1',
+    '-i', opts.input, ...resize, '-frames:v', '1', ...codec, '-update', '1', opts.output,
+  ];
+}
+
 // Total bitrate in kbps that makes `duration` seconds weigh `targetMB` megabytes.
 // Aims 3% under the target to leave room for container overhead.
 function bitrateForSize(targetMB, duration) {
@@ -155,4 +194,4 @@ function defaultOutputPath(input, format, exists) {
   return candidate;
 }
 
-module.exports = { buildJobs, bitrateForSize, parseTime, defaultOutputPath };
+module.exports = { buildJobs, imageArgs, bitrateForSize, parseTime, defaultOutputPath };

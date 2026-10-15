@@ -29,7 +29,7 @@ async function convert(opts) {
   return probe(ffprobePath, opts.output);
 }
 
-for (const format of Object.keys(FORMATS)) {
+for (const format of Object.keys(FORMATS).filter((f) => FORMATS[f].kind !== 'image')) {
   test(`converts to ${format}`, async () => {
     const out = await convert({ output: path.join(dir, `out.${format}`), format });
     assert.ok(out.size > 0);
@@ -58,4 +58,44 @@ test('cancel stops the job', async () => {
   const job = runPasses(ffmpegPath, passes, duration);
   setTimeout(() => job.cancel(), 200);
   await assert.rejects(job.promise, /Cancelled/);
+});
+
+const { encodeImageToSize } = require('../src/core/image-size');
+const photo = path.join(dir, 'photo.png');
+execFileSync(ffmpegPath, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=2000x1500', '-frames:v', '1', photo]);
+
+test('detects images', async () => {
+  assert.strictEqual((await probe(ffprobePath, photo)).isImage, true);
+  assert.strictEqual((await probe(ffprobePath, input)).isImage, false);
+});
+
+for (const format of ['jpg', 'png', 'webp']) {
+  test(`converts image to ${format} with resize`, async () => {
+    const output = path.join(dir, `photo-out.${format}`);
+    const info = await probe(ffprobePath, photo);
+    const { passes } = buildJobs({ input: photo, output, format, resize: { scale: 0.5 } }, info);
+    await runPasses(ffmpegPath, passes, 0).promise;
+    const out = await probe(ffprobePath, output);
+    assert.strictEqual(out.isImage, true);
+    assert.deepStrictEqual([out.width, out.height], [1000, 750]);
+  });
+}
+
+test('image target size picks the best quality that fits', async () => {
+  const output = path.join(dir, 'fit.jpg');
+  const seen = [];
+  await encodeImageToSize(ffmpegPath, { input: photo, output, format: 'jpg', compression: { mode: 'size', targetMB: 0.15 } }, (p) => seen.push(p.fraction)).promise;
+  const size = fs.statSync(output).size;
+  assert.ok(size <= 0.15 * 1024 * 1024 && size > 0.05 * 1024 * 1024, `got ${size}`);
+  assert.strictEqual(seen.at(-1), 1);
+  assert.deepStrictEqual(fs.readdirSync(dir).filter((f) => f.startsWith('.studio-try')), []);
+});
+
+test('image target size that cannot be reached says so', async () => {
+  const output = path.join(dir, 'tiny.jpg');
+  await assert.rejects(
+    encodeImageToSize(ffmpegPath, { input: photo, output, format: 'jpg', compression: { mode: 'size', targetMB: 0.001 } }).promise,
+    /lowest quality/
+  );
+  assert.ok(!fs.existsSync(output));
 });
