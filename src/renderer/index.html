@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+  <title>FFmpeg Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Shown until a file is chosen -->
+  <section id="empty" class="empty">
+    <div id="drop" class="drop">
+      <svg viewBox="0 0 24 24" class="drop-icon" aria-hidden="true">
+        <path d="M12 16V4m0 0-4 4m4-4 4 4M5 20h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>FFmpeg Studio</h1>
+      <p class="muted">Drop a video, audio or image file to convert, compress, resize or trim it.</p>
+      <button id="pick" class="primary">Choose file</button>
+    </div>
+    <div id="empty-error" class="error" hidden></div>
+  </section>
+
+  <!-- Shown once a file is loaded -->
+  <div id="editor" class="editor" hidden>
+    <header class="file">
+      <div class="file-text">
+        <div id="file-name" class="file-name"></div>
+        <div id="file-meta" class="file-meta"></div>
+      </div>
+      <button id="change" class="ghost">Change</button>
+    </header>
+
+    <main>
+      <section>
+        <h2>Format</h2>
+        <div class="pill-group">
+          <span class="group-label">Video</span>
+          <div id="formats-video" class="pills"></div>
+        </div>
+        <div class="pill-group">
+          <span class="group-label">Audio</span>
+          <div id="formats-audio" class="pills"></div>
+        </div>
+        <div class="pill-group">
+          <span class="group-label">Image</span>
+          <div id="formats-image" class="pills"></div>
+        </div>
+      </section>
+
+      <section id="compress-section">
+        <h2>Size</h2>
+        <div class="segmented" id="size-mode">
+          <button data-value="high">High quality</button>
+          <button data-value="balanced" class="on">Balanced</button>
+          <button data-value="small">Smallest</button>
+          <button data-value="size">Target size</button>
+        </div>
+        <div id="size-row" class="inline" hidden>
+          <input type="number" id="target-mb" min="0.01" step="any" value="10" />
+          <span class="unit">MB</span>
+          <span class="muted small" id="size-hint"></span>
+        </div>
+        <p class="muted small" id="lossless-note" hidden></p>
+        <p class="muted small" id="gif-note" hidden>GIF size depends on frame rate and resolution.</p>
+      </section>
+
+      <section class="row">
+        <div class="field" id="resize-field">
+          <h2>Resolution</h2>
+          <select id="height"></select>
+          <div id="custom-height-row" class="inline" hidden>
+            <input type="number" id="custom-height" min="16" step="2" value="540" />
+            <span class="unit">px tall</span>
+          </div>
+        </div>
+        <div class="field" id="trim-field">
+          <h2>Trim</h2>
+          <div class="inline">
+            <input type="text" id="trim-start" placeholder="Start" />
+            <span class="unit">to</span>
+            <input type="text" id="trim-end" placeholder="End" />
+          </div>
+        </div>
+      </section>
+
+      <section class="row" id="extras-section">
+        <label class="switch" id="remove-audio-row">
+          <input type="checkbox" id="remove-audio" />
+          <span class="track"></span>
+          Remove audio
+        </label>
+        <div class="field" id="gif-fps-row" hidden>
+          <h2>Frame rate</h2>
+          <select id="gif-fps">
+            <option value="8">8 fps</option>
+            <option value="12" selected>12 fps</option>
+            <option value="15">15 fps</option>
+            <option value="24">24 fps</option>
+          </select>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div id="status" class="status">
+        <div class="save">
+          <span class="muted small">Save as</span>
+          <button id="change-output" class="link" title=""></button>
+        </div>
+        <div id="progress-wrap" hidden>
+          <div class="progress"><div id="bar"></div></div>
+          <div id="progress-label" class="muted small"></div>
+        </div>
+        <div id="result" class="result" hidden></div>
+        <div id="error" class="error" hidden></div>
+      </div>
+      <button id="cancel" hidden>Cancel</button>
+      <button id="convert" class="primary">Convert</button>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
