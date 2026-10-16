@@ -1,0 +1,151 @@
+# Builds the mobile app (mobile/) and checks ffmpeg really works inside it:
+# - Android: builds the installable APKs (download them from the run's Artifacts),
+#   then runs the in-app self-test on an emulator.
+# - iOS: builds for the simulator and runs the same self-test there.
+name: Mobile app
+
+# Push only (no pull_request trigger), so a PR doesn't build everything twice; the
+# checks still show on the PR because they run on its head commit.
+on:
+  push:
+    paths: ['mobile/**', '.github/workflows/mobile.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npx expo prebuild --platform android --no-install
+      - name: Build release APKs
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Name the APKs
+        run: |
+          mkdir -p ../apk
+          for f in android/app/build/outputs/apk/release/*.apk; do
+            abi=$(basename "$f" | sed -E 's/app-(.*)-release\.apk/\1/')
+            cp "$f" "../apk/ffmpeg-studio-${abi}.apk"
+          done
+          ls -lh ../apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-studio-android
+          path: apk/*.apk
+          if-no-files-found: error
+
+  android-selftest:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-studio-android
+          path: apk
+      - name: Enable KVM
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the self-test on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          working-directory: .
+          script: |
+            adb install -r apk/ffmpeg-studio-x86_64.apk
+            adb logcat -c
+            adb shell am start -W -a android.intent.action.VIEW -d "ffmpegstudio://selftest" com.karan5656.ffmpegstudio
+            for i in $(seq 1 120); do if adb logcat -d | grep -q "SELFTEST DONE"; then break; fi; sleep 5; done
+            adb logcat -d | grep -E "SELFTEST|FATAL|AndroidRuntime" | sed -E 's/^.*(SELFTEST)/\1/' | tee selftest.log
+            grep -q "SELFTEST DONE pass=[1-9][0-9]* fail=0" selftest.log
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx expo prebuild --platform ios
+      - name: Build for the simulator
+        run: |
+          xcodebuild -workspace ios/FFmpegStudio.xcworkspace -scheme FFmpegStudio -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO | tail -n 40
+          test "${PIPESTATUS[0]}" = 0
+      - name: Run the self-test in the simulator
+        run: |
+          device=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone[^(]*\(([0-9A-F-]{36})\)' | grep -oE '[0-9A-F-]{36}')
+          echo "device=$device" >> "$GITHUB_ENV"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device"
+          xcrun simctl install "$device" build/Build/Products/Release-iphonesimulator/FFmpegStudio.app
+          docs="$(xcrun simctl get_app_container "$device" com.karan5656.ffmpegstudio data)/Documents"
+          mkdir -p "$docs" && touch "$docs/selftest-request"
+          xcrun simctl launch "$device" com.karan5656.ffmpegstudio
+          for i in $(seq 1 120); do if grep -q "DONE" "$docs/selftest.txt" 2>/dev/null; then break; fi; sleep 5; done
+          cat "$docs/selftest.txt"
+          grep -q "DONE pass=[1-9][0-9]* fail=0" "$docs/selftest.txt"
+      - name: Collect simulator screenshot and logs
+        if: failure()
+        run: |
+          mkdir -p ../ios-debug
+          xcrun simctl io "$device" screenshot ../ios-debug/screen.png || true
+          xcrun simctl spawn "$device" log show --last 20m --style compact \
+            --predicate 'process == "FFmpegStudio"' > ../ios-debug/app.log 2>&1 || true
+          tail -n 80 ../ios-debug/app.log
+          cp ~/Library/Logs/DiagnosticReports/FFmpegStudio* ../ios-debug/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-debug
+          path: ios-debug
