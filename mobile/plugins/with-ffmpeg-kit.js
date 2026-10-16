@@ -3,15 +3,16 @@
 // ffmpeg-kit was retired in 2025 and its prebuilt binaries were taken offline, so the
 // stock package no longer builds. Its JavaScript and native bridge code still work; only
 // the binaries need a new home:
-//   Android: io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb on Maven Central
-//            (ffmpeg-kit 6.1 rebuilt with 16 KB page support, which Android 15+ wants).
-//   iOS:     the official 6.0 full-gpl xcframeworks, mirrored at cocoapods-alt, via
-//            native/ffmpeg-kit-ios-https.podspec.json.
+//   Android: com.antonkarpenko:ffmpeg-kit-full-gpl (FFmpeg 8.1) on Maven Central. Its
+//            classes live in com.antonkarpenko.ffmpegkit, so
+//            patches/ffmpeg-kit-react-native+6.0.2.patch updates the bridge's imports.
+//   iOS:     the matching FFmpeg 8.1 full-gpl frameworks from the same maintainer, via
+//            native/ffmpeg-kit-ios-https.podspec.
 // "full-gpl" includes x264 (H.264), libvpx (VP9), lame (MP3), opus, vorbis and libwebp,
 // which the app's formats need.
 const { withPodfile, withProjectBuildGradle, withAppBuildGradle } = require('expo/config-plugins');
 
-const ANDROID_FFMPEG = 'io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb:6.1.4';
+const ANDROID_FFMPEG = 'com.antonkarpenko:ffmpeg-kit-full-gpl:2.2.3';
 const MARK = '// ffmpeg-kit binaries (plugins/with-ffmpeg-kit.js)';
 
 const withAndroidFFmpeg = (config) =>
@@ -56,7 +57,7 @@ android {
 
 const withIosFFmpeg = (config) =>
   withPodfile(config, (cfg) => {
-    const line = "  pod 'ffmpeg-kit-ios-https', :podspec => File.join(__dir__, '..', 'native', 'ffmpeg-kit-ios-https.podspec.json')";
+    const line = "  pod 'ffmpeg-kit-ios-https', :podspec => File.join(__dir__, '..', 'native', 'ffmpeg-kit-ios-https.podspec')";
     if (!cfg.modResults.contents.includes(line)) {
       cfg.modResults.contents = cfg.modResults.contents.replace(
         /^(\s*use_expo_modules!.*)$/m,

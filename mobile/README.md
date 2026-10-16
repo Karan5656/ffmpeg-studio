@@ -120,14 +120,15 @@ so it proves ffmpeg itself works inside the app.
 
 ffmpeg-kit, the standard way to put ffmpeg in a mobile app, was retired in 2025 and its
 prebuilt downloads were removed, so a fresh install of it no longer builds. Its code still
-works, so this app keeps it and points it at builds that are still online:
+works, so this app keeps it and points it at FFmpeg 8.1 builds from
+[Anton Karpenko](https://github.com/sk3llo/ffmpeg_kit_flutter), who maintains a fork:
 
-- **Android:** `io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb` from Maven
-  Central, a rebuild of ffmpeg-kit 6.1 that also supports Android 15's 16 KB pages.
-- **iPhone:** the original ffmpeg-kit 6.0 "full-gpl" frameworks, mirrored at
-  [cocoapods-alt/ffmpeg-kit-ios-full-gpl](https://github.com/cocoapods-alt/ffmpeg-kit-ios-full-gpl)
-  (pinned to one commit in `native/ffmpeg-kit-ios-https.podspec.json`).
+- **Android:** `com.antonkarpenko:ffmpeg-kit-full-gpl` from Maven Central. Its Java classes
+  were renamed, so `patches/ffmpeg-kit-react-native+6.0.2.patch` (applied by
+  `patch-package` on `npm install`) updates the bridge's imports.
+- **iPhone:** the matching full-gpl frameworks from the fork's GitHub release, pinned by
+  checksum in `native/ffmpeg-kit-ios-https.podspec`. CocoaPods runs
+  `native/ffmpeg-kit-ios-xcframeworks.sh` to repackage them for phones and the simulator.
 
-Both are third-party mirrors, and both are "full-gpl" builds (they include x264 for
-H.264), which makes the app GPL-3.0. That's fine for personal use; keep it in mind before
-ever publishing it.
+Both are "full-gpl" builds (they include x264 for H.264), which makes the app GPL-3.0.
+That's fine for personal use; keep it in mind before ever publishing it.
